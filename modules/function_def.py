@@ -9,11 +9,33 @@ import os
 
 # USER DEFINE FUNCTION
 # -----------------------------------
-# Prettier Tabular Output
 def print_df(dataframe):
+    """
+    Prettier Tabular Output.
+
+    Args:
+        dataframe (pandas.core.frame.DataFrame): The Dataframe that will be print out.
+    """
     print(tb(dataframe, headers="keys", tablefmt="psql"))
 
 
-# Clear Output Screen
 def clearscreen():
+    """
+    Clears the terminal screen.
+
+    Uses the appropriate command depending on the operating system:
+    - 'cls' for Windows
+    - 'clear' for Unix/Linux/Mac
+    """
     os.system("cls" if os.name == "nt" else "clear")
+
+
+def initial_swarm_positions(N, d, Xmin, Xmax):
+    """ """
+    X = pd.DataFrame()
+    for i in range(0, N):
+        idx = "X" + str(i + 1)
+        position = [[rd.uniform(Xmin, Xmax) for j in range(0, d)]]
+        X[idx] = position
+
+    return X
