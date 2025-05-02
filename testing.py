@@ -1,23 +1,74 @@
-import pandas as pd
-import numpy as np
-import random as rd
+# Import functions from modules
+from modules import *
 
-N = 10
-d = 5
-Xj = pd.DataFrame()
+# clearscreen()
+# DATA SOURCE INIT AND PREPROCCESING
+# -------------------------------------------
+# Input datasource to Master_df
+Master_df = pd.DataFrame(
+    pd.read_excel(
+        "Datasource/Master Data.xlsx",
+        sheet_name="Location Distance",
+    )
+)
+Master_df = Master_df.drop(Master_df.columns[0], axis=1)
+print_df(Master_df)
 
-# Global dataframe
-A = pd.DataFrame(columns=["A", "B"])
-print(A)
+# Get Master_df header column before change it
+Headers = Master_df.columns.to_list()
+
+# Change column name same as index
+Master_df.columns = range(Master_df.shape[1])
+print_df(Master_df)
 
 
-def add_row_to_A(df, a_val, b_val):
-    new_row = pd.DataFrame([{"A": a_val, "B": b_val}])
-    df = pd.concat([df, new_row], ignore_index=True)
-    return df
+# PSO INITIALIZATION
+# -------------------------------------------
+# Base Parameter
+n = 100  # Max Iteration
+N = 25  # Swarm Size
+d = len(Master_df.columns)  # Dimention Size
+particle_list = ["X" + str(i + 1) for i in range(0, N)]  # List of Particle Names
 
+c1 = 2  # Learning Rates
+c2 = 2  # Learning Rates
 
-# Call and update
-A = add_row_to_A(A, 1, 2)
-A = add_row_to_A(A, 3, 5)
-print(A)
+# Inertia Weight
+# here, i use random inertia weight strategy every iteration
+# so, i generate it by a function in modules/function_def.py
+
+# Position Clamping
+X_min = 0
+X_max = 1
+
+# Velocity Clamping
+V_max = (rd.uniform(0, 1)) * (X_max - X_min)
+V_min = -V_max
+
+# Generate new dataframe
+Xj = pd.DataFrame(columns=particle_list)  # Storage for position data in each iteration
+Vj = pd.DataFrame(columns=particle_list)  # Storage for velocity data in each iteration
+Route_j = pd.DataFrame(columns=particle_list)  # Storage for the route result
+print_df(Xj)
+
+# Param init
+# ----------------------------
+X_df = Xj # Position Storage
+dimension = d # the dimension number
+Xmin = X_min # the minimum position clamping
+Xmax = X_max # the maximum position clamping
+
+# Functino logic
+# ----------------------------
+# Securing Source Dataframe
+X_df = X_df.copy()
+
+# Get Particle Names
+particle_names = X_df.columns.to_list()
+
+pos = pd.DataFrame() # Temporary storage
+for particle in particle_names:
+    position = [[round((rd.uniform(Xmin,Xmax)),6) for j in range(0,dimension)]]
+    pos[particle] = position
+X_df = pd.concat([X_df,pos], ignore_index= True)
+print_df(X_df)

@@ -30,86 +30,139 @@ def clearscreen():
     os.system("cls" if os.name == "nt" else "clear")
 
 
-def initial_swarm_position(swarmsize, dimension, Xmin, Xmax):
+def initial_swarm_position(
+    X_df: pd.DataFrame, dimension: int, particle_names: list, Xmin: float, Xmax: float
+):
     """ """
-    X = pd.DataFrame()
+    # Securing Source Dataframe
+    X_df = X_df.copy()
 
-    for i in range(0, swarmsize):
-        idx = "X" + str(i + 1)
-        position = [[round(rd.uniform(Xmin, Xmax), 6) for j in range(0, dimension)]]
-        X[idx] = position
+    pos = pd.DataFrame()  # Temporary storage
+    for particle in particle_names:  # Generate Initial Positions
+        position = [[round((rd.uniform(Xmin, Xmax)), 6) for j in range(0, dimension)]]
+        pos[particle] = position
 
-    return X
+    X_df = pd.concat([X_df, pos], ignore_index=True)
+
+    return X_df
 
 
-def initial_swarm_velocity(swarmsize, dimension, Vmin, Vmax):
+def initial_swarm_velocity(
+    V_df: pd.DataFrame, dimension: int, particle_names: list, Vmin: float, Vmax: float
+):
     """"""
-    V = pd.DataFrame()
+    # Securing Source Dataframe
+    V_df = V_df.copy()
 
-    for i in range(0, swarmsize):
-        idx = "V" + str(i + 1)
-        velocity = [[round(rd.uniform(Vmin, Vmax), 6) for j in range(0, dimension)]]
-        V[idx] = velocity
+    velo = pd.DataFrame()  # Temporary storage
+    for particle in particle_names:  # Generate Initial Velocities
+        velocity = [[round((rd.uniform(Vmin, Vmax)), 6) for j in range(0, dimension)]]
+        velo[particle] = velocity
 
-    return V
+    V_df = pd.concat([V_df, velo], ignore_index=True)
+
+    return V_df
 
 
-def evaluate_route(dataframe, Xj, iteration, swarmsize):
+def evaluate_route(
+    R_df: pd.DataFrame, X_df: pd.DataFrame, particle_names: list, iteration: int
+):
     """"""
-    Xj = pd.DataFrame(Xj)
-    Routes = pd.DataFrame()
+    # Securing Source Dataframe
+    R_df = R_df.copy()
+    X_df = X_df.copy()
 
-    for i in range(0, swarmsize):
-        idx = "X" + str(i + 1)
-        unsorted_list = Xj[idx][iteration]
-        sorted_list = [
-            sorted(range(len(unsorted_list)), key=lambda x: unsorted_list[x])
-        ]
-        Routes[idx] = sorted_list
-    Routes = pd.concat([dataframe, Routes], ignore_index=True)
+    Routes = pd.DataFrame()  # Temporary Storage
+    for particle in particle_names:  # Sorting Routes for Each Particle
+        position = X_df[particle][iteration]
+        sort_route = [sorted(range(len(position)), key=lambda x: position[x])]
+        Routes[particle] = sort_route
 
-    return Routes
+    R_df = pd.concat([R_df, Routes], ignore_index=True)
+
+    return R_df
 
 
-def evaluate_cost(dataframe, Routes_df, iteration, Source_df, swarmsize):
+def evaluate_cost(
+    C_df: pd.DataFrame,
+    R_df: pd.DataFrame,
+    CDS_df: pd.DataFrame,
+    particle_names: list,
+    iteration=int,
+):
     """"""
-    Routes_df = pd.DataFrame(Routes_df)
-    Source_df = pd.DataFrame(Source_df)
-    AllCost = pd.DataFrame()
-    for i in range(0, swarmsize):
-        idx = "X" + str(i + 1)
-        route = Routes_df[idx][iteration]
+    Costs = pd.DataFrame()  # Temporary Storage
+    for particle in particle_names:
         cost = 0
-        for j in range(0, len(route) - 1):
-            vertex1 = route[j]
-            vertex2 = route[j + 1]
-            cost = cost + (Source_df[vertex2][vertex1])
-        AllCost[idx] = [cost]
-    AllCost = pd.concat([dataframe, AllCost], ignore_index=True)
+        route = R_df[particle][iteration]
+        for idx in range(0, len(route) - 1):
+            vertex1 = route[idx]
+            vertex2 = route[idx + 1]
+            cost = cost + (CDS_df[vertex2][vertex1])
+        Costs[particle] = [cost]
 
-    return AllCost
+    C_df = pd.concat([C_df, Costs], ignore_index=True)
+
+    return C_df
 
 
-def PSO_exe(max_iter: int, swarmsize: int, dimension: int, Xmin, Xmax, Vmin, Vmax):
+def evaluate_fitness(
+    F_df: pd.DataFrame, C_df: pd.DataFrame, particle_names: list, iteration=int
+):
+    Fitness = pd.DataFrame()  # Temporary Storage
+    for particle in particle_names:
+        cost = C_df[particle][iteration]
+        fit_val = round(1 / cost, 6)
+        Fitness[particle] = [fit_val]
+
+    F_df = pd.concat([F_df, Fitness], ignore_index=True)
+
+    return F_df
+
+
+def PSO_exe(
+    Storage: list,
+    # X_df: pd.DataFrame,
+    # V_df: pd.DataFrame,
+    # R_df: pd.DataFrame,
+    # C_df: pd.DataFrame,
+    # F_df: pd.DataFrame,
+    CDS_df: pd.DataFrame,
+    max_iter: int,
+    swarmsize: int,
+    dimension: int,
+    particle_names: list,
+    Xmin: float,
+    Xmax: float,
+    Vmin: float,
+    Vmax: float,
+):
     """"""
-    # Generate new dataframe
-    Xj = pd.DataFrame() # Storage for position data in each iteration
-    Vj = pd.DataFrame() # Storage for velocity data in each iteration
-    Route_j = pd.DataFrame() # Storage for the route result in each iteration 
+    # Ungroup Dataframe
+    X_df = Storage[0]  # Storage of Position Data
+    V_df = Storage[1]  # Storage of Velocity Data
+    R_df = Storage[2]  # Storage of The Route
+    C_df = Storage[3]  # Storage of The Cost
+    F_df = Storage[4]  # Storage of The Fitness Value
+    P_df = Storage[5]  # Storage of The Pbest
 
-    for i in range(0, max_iter + 1):
+    for i in range(0, 1):  # Start Iteration
         if i == 0:
             # Generate Initial Position
-            Xj = initial_swarm_position(swarmsize, dimension, Xmin, Xmax)
-
-            # Get particle name by the column
-            particle_names = Xj.columns.to_list()
+            X_df = initial_swarm_position(X_df, dimension, particle_names, Xmin, Xmax)
 
             # Generate Initial Velocity
-            Vj = initial_swarm_velocity(swarmsize, dimension, Vmin, Vmax)
+            V_df = initial_swarm_velocity(V_df, dimension, particle_names, Vmin, Vmax)
         # else:
-        
+        #
 
-        # Evaluate New Route
-        
+        # Constructing The Route
+        R_df = evaluate_route(R_df, X_df, particle_names, i)
 
+        # Calculating The Cost of The Route
+        C_df = evaluate_cost(C_df, R_df, CDS_df, particle_names, i)
+
+        # Evaluate The Fitness Value of The Route
+        F_df = evaluate_fitness(F_df, C_df, particle_names, i)
+
+    return [X_df, V_df, R_df, C_df, F_df, P_df]
