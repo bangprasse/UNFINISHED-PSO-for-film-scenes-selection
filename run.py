@@ -56,9 +56,10 @@ Route_j = pd.DataFrame(columns=particle_list)  # Storage of the routes result
 Cost_j = pd.DataFrame(columns=particle_list) # Storage of the costs result
 Fitness_j = pd.DataFrame(columns=particle_list) # Storage of the fitness value
 Pbest_j = pd.DataFrame(columns=particle_list) # Storage of the Pbest in each iteration
+Gbest_i = pd.DataFrame(columns=["Gbest","Fitness Value"]) # Storage of the Gbest in each iteration
 
 # Grouping Dataframe
-Result = [Xj, Vj, Route_j, Cost_j, Fitness_j, Pbest_j]
+Result = [Xj, Vj, Route_j, Cost_j, Fitness_j, Pbest_j, Gbest_i]
 
 # Execute PSO algorithm
 Result = PSO_exe(Result, Master_df, n, N, d, particle_list, X_min, X_max, V_min, V_max)

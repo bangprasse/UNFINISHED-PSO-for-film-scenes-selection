@@ -119,31 +119,99 @@ def evaluate_fitness(
 
     return F_df
 
+
+def calc_fit_pos(pos: list, CDS_df: pd.DataFrame):
+    # Sorting Route
+    route = sorted(range(len(pos)), key=lambda x: pos[x])
+
+    # Calculate Fitness Value
+    cost = 0
+    for r in range(0, len(route) - 1):
+        vertex1 = route[r]
+        vertex2 = route[r + 1]
+        cost = cost + (CDS_df[vertex2][vertex1])
+    fitval = round(1 / cost, 6)
+
+    return fitval
+
+
 def evaluate_pbest(
-        P_df:pd.DataFrame, F_df:pd.DataFrame, X_df:pd.DataFrame, particle_names:list, iteration:int 
+    P_df: pd.DataFrame,
+    F_df: pd.DataFrame,
+    X_df: pd.DataFrame,
+    R_df: pd.DataFrame,
+    CDS_df: pd.DataFrame,
+    particle_names: list,
+    iteration: int,
 ):
     # Get Fitness Value in Now Iteration
     fit_val_now = F_df.iloc[iteration]
 
-    Pc_df = pd.DataFrame() # Temporary Storage
+    Pc_df = pd.DataFrame()  # Temporary Storage
     for particle in particle_names:
-        if (iteration == 0):
+        if iteration == 0:
             # Save Now Position as Pbest
             Pc_df[particle] = [X_df[particle][0]]
         else:
-            # Call The Fitness Value in iteration-1 of the particle
-            fit_val_bfr = F_df[particle][iteration-1]
+            # Call The Pbest and its fitness value in iteration-1 of the particle
+            Pb_part_bfr = P_df[particle][iteration - 1]
+            Pb_fit_val = calc_fit_pos(Pb_part_bfr, CDS_df)
 
             # Save the position with biggest Fitness Value as Pbest
-            if(fit_val_now[particle] >= fit_val_bfr):
+            if fit_val_now[particle] >= Pb_fit_val:
                 Pc_df[particle] = [X_df[particle][iteration]]
             else:
-                Pc_df[particle] = [X_df[particle][iteration-1]]
-    
-    P_df = pd.concat([P_df,Pc_df], ignore_index=True)
-    
+                Pc_df[particle] = [Pb_part_bfr]
+
+    P_df = pd.concat([P_df, Pc_df], ignore_index=True)
+
     return P_df
 
+def evaluate_gbest(G_df:pd.DataFrame, P_df:pd.DataFrame, CDS_df:pd.DataFrame,particle_names:list,iteration:int):
+    # Call All of Now-Iteration Pbest
+    P_best = P_df.iloc[iteration] # Series of Particle Position with Particle name as idx
+
+    # Find The Gbest Candidat in Now-Iteration
+    Gpos_candidat = []
+    Gval_candidat = 0
+    for particle in particle_names:
+        Pb_particle = P_best[particle] # list of particle position
+        Pb_val = calc_fit_pos(Pb_particle, CDS_df)
+        
+        if Pb_val > Gval_candidat:
+            Gpos_candidat = Pb_particle
+            Gval_candidat = Pb_val
+
+    Gc_df = pd.DataFrame() # Temporary Storage
+    if iteration == 0:
+        Gc_df["Gbest"] = [Gpos_candidat]
+        Gc_df["Fitness Value"] = [Gval_candidat]
+    else:
+        # Call The Gbest of Iteration-1
+        G_bfr_val = G_df["Fitness Value"][iteration-1]
+
+        if Gval_candidat >= G_bfr_val:
+            Gc_df["Gbest"] = [Gpos_candidat]
+            Gc_df["Fitness Value"] = [Gval_candidat]
+        else:
+            Gc_df["Gbest"] = [G_df["Gbest"][iteration-1]]
+            Gc_df["Fitness Value"] = [G_bfr_val]
+
+    G_df = pd.concat([G_df,Gc_df], ignore_index=True)
+
+    return G_df
+
+def generate_inertia_weight(IW_df:pd.DataFrame, iteration:int):
+    # Generate now-iteration's inertia weight
+    inert_w = 0.5 + (round(rd.uniform(0,1)/2,6))
+    
+    # Saving to temporary storage
+    IWc_df = pd.DataFrame(columns="Inertia Weight", data=[inert_w])
+
+    # Add to the Inertia Weight Dataframe as a new row
+    IW_df = pd.concat([IW_df, IWc_df], ignore_index=True)
+
+    return IW_df
 
 def PSO_exe(
     Storage: list,
@@ -165,6 +233,7 @@ def PSO_exe(
     C_df = Storage[3]  # Storage of The Cost
     F_df = Storage[4]  # Storage of The Fitness Value
     P_df = Storage[5]  # Storage of The Pbest
+    G_df = Storage[6]  # Storage of The Gbest
 
     for i in range(0, 1):  # Start Iteration
         if i == 0:
@@ -175,22 +244,29 @@ def PSO_exe(
             # Generate Initial Velocity
             V_df = initial_swarm_velocity(V_df, dimension, particle_names, Vmin, Vmax)
             print_df(V_df)
-        # else:
-        #
+        else:
+            # Generate Inertia Weight
+            IW_df = generate_inertia_weight(IW_df, i)
+
+            # Updating Velocity
+            V_df = update_velocity
+            
 
         # Constructing The Route
         R_df = evaluate_route(R_df, X_df, particle_names, i)
-        print_df(V_df)
+
         # Calculating The Cost of The Route
         C_df = evaluate_cost(C_df, R_df, CDS_df, particle_names, i)
-        print_df(C_df)
+
         # Evaluate The Fitness Value of The Route
         F_df = evaluate_fitness(F_df, C_df, particle_names, i)
-        print_df(F_df)
-        # Evaluate P_best and G_best
-        P_df = evaluate_pbest(P_df,F_df,X_df,particle_names,i)
-        print_df(P_df)
         
+        # Evaluate P_best
+        P_df = evaluate_pbest(P_df, F_df, X_df, R_df, CDS_df, particle_names, i)
+        
+        # Evaluate G_best
+        G_df = evaluate_gbest(G_df, P_df, CDS_df, particle_names, i)
+
     Result = [X_df, V_df, R_df, C_df, F_df, P_df]
 
     return Result
