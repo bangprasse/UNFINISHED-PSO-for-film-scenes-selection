@@ -119,14 +119,34 @@ def evaluate_fitness(
 
     return F_df
 
+def evaluate_pbest(
+        P_df:pd.DataFrame, F_df:pd.DataFrame, X_df:pd.DataFrame, particle_names:list, iteration:int 
+):
+    # Get Fitness Value in Now Iteration
+    fit_val_now = F_df.iloc[iteration]
+
+    Pc_df = pd.DataFrame() # Temporary Storage
+    for particle in particle_names:
+        if (iteration == 0):
+            # Save Now Position as Pbest
+            Pc_df[particle] = [X_df[particle][0]]
+        else:
+            # Call The Fitness Value in iteration-1 of the particle
+            fit_val_bfr = F_df[particle][iteration-1]
+
+            # Save the position with biggest Fitness Value as Pbest
+            if(fit_val_now[particle] >= fit_val_bfr):
+                Pc_df[particle] = [X_df[particle][iteration]]
+            else:
+                Pc_df[particle] = [X_df[particle][iteration-1]]
+    
+    P_df = pd.concat([P_df,Pc_df], ignore_index=True)
+    
+    return P_df
+
 
 def PSO_exe(
     Storage: list,
-    # X_df: pd.DataFrame,
-    # V_df: pd.DataFrame,
-    # R_df: pd.DataFrame,
-    # C_df: pd.DataFrame,
-    # F_df: pd.DataFrame,
     CDS_df: pd.DataFrame,
     max_iter: int,
     swarmsize: int,
@@ -150,22 +170,27 @@ def PSO_exe(
         if i == 0:
             # Generate Initial Position
             X_df = initial_swarm_position(X_df, dimension, particle_names, Xmin, Xmax)
+            print_df(X_df)
 
             # Generate Initial Velocity
             V_df = initial_swarm_velocity(V_df, dimension, particle_names, Vmin, Vmax)
+            print_df(V_df)
         # else:
         #
 
         # Constructing The Route
         R_df = evaluate_route(R_df, X_df, particle_names, i)
-
+        print_df(V_df)
         # Calculating The Cost of The Route
         C_df = evaluate_cost(C_df, R_df, CDS_df, particle_names, i)
-
+        print_df(C_df)
         # Evaluate The Fitness Value of The Route
         F_df = evaluate_fitness(F_df, C_df, particle_names, i)
-
-        # Evaluate P_best
+        print_df(F_df)
+        # Evaluate P_best and G_best
+        P_df = evaluate_pbest(P_df,F_df,X_df,particle_names,i)
+        print_df(P_df)
         
+    Result = [X_df, V_df, R_df, C_df, F_df, P_df]
 
-    return [X_df, V_df, R_df, C_df, F_df, P_df]
+    return Result

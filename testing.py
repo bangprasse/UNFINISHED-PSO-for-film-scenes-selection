@@ -63,12 +63,10 @@ Xmax = X_max # the maximum position clamping
 # Securing Source Dataframe
 X_df = X_df.copy()
 
-# Get Particle Names
-particle_names = X_df.columns.to_list()
-
-pos = pd.DataFrame() # Temporary storage
-for particle in particle_names:
-    position = [[round((rd.uniform(Xmin,Xmax)),6) for j in range(0,dimension)]]
-    pos[particle] = position
-X_df = pd.concat([X_df,pos], ignore_index= True)
-print_df(X_df)
+A = [123, 87, 90]
+F = []
+for i in A:
+    f = round(1/i, 6)
+    F.append(f)
+print(A)
+print(F)
