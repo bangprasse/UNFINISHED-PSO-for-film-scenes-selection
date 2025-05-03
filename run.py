@@ -32,7 +32,7 @@ print_df(Master_df)
 n = 100  # Max Iteration
 N = 25  # Swarm Size
 d = len(Master_df.columns)  # Dimention Size
-particle_list = ["X" + str(i + 1) for i in range(0, N)]  # List of Particle Names
+particle_list = ["Prt" + str(i + 1) for i in range(0, N)]  # List of Particle Names
 
 c1 = 2  # Learning Rates
 c2 = 2  # Learning Rates
@@ -51,15 +51,26 @@ V_min = -V_max
 
 # Generate new dataframe
 Xj = pd.DataFrame(columns=particle_list)  # Storage of position data in each iteration
-Vj = pd.DataFrame(columns=particle_list)  # Storage of velocity data in each iteration
+
+V_col = ["r1", "r2"]
+for particle in particle_list:
+    V_col.append(particle)
+Vj = pd.DataFrame(columns=V_col)  # Storage of velocity data in each iteration
 Route_j = pd.DataFrame(columns=particle_list)  # Storage of the routes result
-Cost_j = pd.DataFrame(columns=particle_list) # Storage of the costs result
-Fitness_j = pd.DataFrame(columns=particle_list) # Storage of the fitness value
-Pbest_j = pd.DataFrame(columns=particle_list) # Storage of the Pbest in each iteration
-Gbest_i = pd.DataFrame(columns=["Gbest","Fitness Value"]) # Storage of the Gbest in each iteration
+Cost_j = pd.DataFrame(columns=particle_list)  # Storage of the costs result
+Fitness_j = pd.DataFrame(columns=particle_list)  # Storage of the fitness value
+Pbest_j = pd.DataFrame(columns=particle_list)  # Storage of the Pbest in each iteration
+Gbest_i = pd.DataFrame(
+    columns=["Gbest", "Fitness Value"]
+)  # Storage of the Gbest in each iteration
+Inertia_df = pd.DataFrame(
+    {"Inertia Weight": [0]}
+)  # Storage of the Inertia Weight in each iteration
 
 # Grouping Dataframe
-Result = [Xj, Vj, Route_j, Cost_j, Fitness_j, Pbest_j, Gbest_i]
+Result = [Xj, Vj, Route_j, Cost_j, Fitness_j, Pbest_j, Gbest_i, Inertia_df]
 
 # Execute PSO algorithm
-Result = PSO_exe(Result, Master_df, n, N, d, particle_list, X_min, X_max, V_min, V_max)
+Result = PSO_exe(
+    Result, Master_df, n, N, d, particle_list, c1, c2, X_min, X_max, V_min, V_max
+)

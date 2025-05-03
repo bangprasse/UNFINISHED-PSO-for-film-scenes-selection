@@ -54,7 +54,11 @@ def initial_swarm_velocity(
     # Securing Source Dataframe
     V_df = V_df.copy()
 
+    # adding r1, r2 to initial velocity
     velo = pd.DataFrame()  # Temporary storage
+    velo["r1"] = [0]
+    velo["r2"] = [0]
+
     for particle in particle_names:  # Generate Initial Velocities
         velocity = [[round((rd.uniform(Vmin, Vmax)), 6) for j in range(0, dimension)]]
         velo[particle] = velocity
@@ -167,51 +171,112 @@ def evaluate_pbest(
 
     return P_df
 
-def evaluate_gbest(G_df:pd.DataFrame, P_df:pd.DataFrame, CDS_df:pd.DataFrame,particle_names:list,iteration:int):
+
+def evaluate_gbest(
+    G_df: pd.DataFrame,
+    P_df: pd.DataFrame,
+    CDS_df: pd.DataFrame,
+    particle_names: list,
+    iteration: int,
+):
     # Call All of Now-Iteration Pbest
-    P_best = P_df.iloc[iteration] # Series of Particle Position with Particle name as idx
+    P_best = P_df.iloc[iteration]
 
     # Find The Gbest Candidat in Now-Iteration
     Gpos_candidat = []
     Gval_candidat = 0
     for particle in particle_names:
-        Pb_particle = P_best[particle] # list of particle position
+        Pb_particle = P_best[particle]
         Pb_val = calc_fit_pos(Pb_particle, CDS_df)
-        
+
         if Pb_val > Gval_candidat:
             Gpos_candidat = Pb_particle
             Gval_candidat = Pb_val
 
-    Gc_df = pd.DataFrame() # Temporary Storage
+    Gc_df = pd.DataFrame()  # Temporary Storage
     if iteration == 0:
         Gc_df["Gbest"] = [Gpos_candidat]
         Gc_df["Fitness Value"] = [Gval_candidat]
     else:
         # Call The Gbest of Iteration-1
-        G_bfr_val = G_df["Fitness Value"][iteration-1]
+        G_bfr_val = G_df["Fitness Value"][iteration - 1]
 
         if Gval_candidat >= G_bfr_val:
             Gc_df["Gbest"] = [Gpos_candidat]
             Gc_df["Fitness Value"] = [Gval_candidat]
         else:
-            Gc_df["Gbest"] = [G_df["Gbest"][iteration-1]]
+            Gc_df["Gbest"] = [G_df["Gbest"][iteration - 1]]
             Gc_df["Fitness Value"] = [G_bfr_val]
 
-    G_df = pd.concat([G_df,Gc_df], ignore_index=True)
+    G_df = pd.concat([G_df, Gc_df], ignore_index=True)
 
     return G_df
 
-def generate_inertia_weight(IW_df:pd.DataFrame, iteration:int):
+
+def generate_inertia_weight(IW_df: pd.DataFrame, iteration: int):
     # Generate now-iteration's inertia weight
-    inert_w = 0.5 + (round(rd.uniform(0,1)/2,6))
-    
+    inert_w = 0.5 + (round(rd.uniform(0, 1) / 2, 6))
+
     # Saving to temporary storage
-    IWc_df = pd.DataFrame(columns="Inertia Weight", data=[inert_w])
+    IWc_df = pd.DataFrame({"Inertia Weight": [inert_w]})
 
     # Add to the Inertia Weight Dataframe as a new row
     IW_df = pd.concat([IW_df, IWc_df], ignore_index=True)
 
     return IW_df
+
+
+def update_velocity(
+    V_df: pd.DataFrame,
+    X_df: pd.DataFrame,
+    IW_df: pd.DataFrame,
+    P_df: pd.DataFrame,
+    G_df: pd.DataFrame,
+    particle_names: list,
+    c1: float,
+    c2: float,
+    iteration: int,
+):
+    # Call Inertia Weight Now-Iteration
+    inert_w = IW_df["Inertia Weight"][iteration]
+
+    # Get the Gbest at the iteration-1
+    G_best = np.array(G_df["Gbest"][iteration - 1])
+
+    # Generate value of r1 and r2
+    r1 = round(rd.uniform(0, 1), 6)
+    r2 = round(rd.uniform(0, 1), 6)
+
+    # adding r1, r2 to initial velocity
+    velo = pd.DataFrame()  # Temporary storage
+    velo["r1"] = [r1]
+    velo["r2"] = [r2]
+
+    # Update the Velocity of each particle
+    for particle in particle_names:
+        # Get the particle's position at the iteration-1
+        X_bfr = np.array(X_df[particle][iteration - 1])
+
+        # Get the particle's velocity at the iteration-1
+        V_bfr = np.array(V_df[particle][iteration - 1])
+
+        # Get the particle's Pbest at the iteration-1
+        P_bfr = np.array(P_df[particle][iteration - 1])
+
+        # Calculate New Velocity
+        V_now = (
+            (inert_w * V_bfr)
+            + (c1 * r1 * (P_bfr - X_bfr))
+            + (c2 * r2 * (G_best - X_bfr))
+        )
+        V_now = np.round(V_now, 6)
+
+        velo[particle] = [V_now]
+
+    V_df = pd.concat([V_df, velo], ignore_index=True)
+
+    return V_df
+
 
 def PSO_exe(
     Storage: list,
@@ -220,6 +285,8 @@ def PSO_exe(
     swarmsize: int,
     dimension: int,
     particle_names: list,
+    c1: float,
+    c2: float,
     Xmin: float,
     Xmax: float,
     Vmin: float,
@@ -234,39 +301,40 @@ def PSO_exe(
     F_df = Storage[4]  # Storage of The Fitness Value
     P_df = Storage[5]  # Storage of The Pbest
     G_df = Storage[6]  # Storage of The Gbest
+    IW_df = Storage[7]  # Storage of The Inertia Weight
 
-    for i in range(0, 1):  # Start Iteration
+    for i in range(0, 2):  # Start Iteration
+        print("iteration-" + str(i))
         if i == 0:
             # Generate Initial Position
             X_df = initial_swarm_position(X_df, dimension, particle_names, Xmin, Xmax)
-            print_df(X_df)
 
             # Generate Initial Velocity
             V_df = initial_swarm_velocity(V_df, dimension, particle_names, Vmin, Vmax)
-            print_df(V_df)
         else:
             # Generate Inertia Weight
             IW_df = generate_inertia_weight(IW_df, i)
 
             # Updating Velocity
-            V_df = update_velocity
-            
+            V_df = update_velocity(
+                V_df, X_df, IW_df, P_df, G_df, particle_names, c1, c2, i
+            )
 
         # Constructing The Route
-        R_df = evaluate_route(R_df, X_df, particle_names, i)
+        R_df = evaluate_route(R_df, X_df, particle_names, 0)
 
         # Calculating The Cost of The Route
-        C_df = evaluate_cost(C_df, R_df, CDS_df, particle_names, i)
+        C_df = evaluate_cost(C_df, R_df, CDS_df, particle_names, 0)
 
         # Evaluate The Fitness Value of The Route
-        F_df = evaluate_fitness(F_df, C_df, particle_names, i)
-        
-        # Evaluate P_best
-        P_df = evaluate_pbest(P_df, F_df, X_df, R_df, CDS_df, particle_names, i)
-        
-        # Evaluate G_best
-        G_df = evaluate_gbest(G_df, P_df, CDS_df, particle_names, i)
+        F_df = evaluate_fitness(F_df, C_df, particle_names, 0)
 
-    Result = [X_df, V_df, R_df, C_df, F_df, P_df]
+        # Evaluate P_best
+        P_df = evaluate_pbest(P_df, F_df, X_df, R_df, CDS_df, particle_names, 0)
+
+        # Evaluate G_best
+        G_df = evaluate_gbest(G_df, P_df, CDS_df, particle_names, 0)
+
+    Result = [X_df, V_df, R_df, C_df, F_df, P_df, G_df, IW_df]
 
     return Result
