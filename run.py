@@ -30,7 +30,7 @@ print_df(Master_df)
 # -------------------------------------------
 # Base Parameter
 n = 100  # Max Iteration
-N = 25  # Swarm Size
+N = 50  # Swarm Size
 d = len(Master_df.columns)  # Dimention Size
 particle_list = ["Prt" + str(i + 1) for i in range(0, N)]  # List of Particle Names
 
@@ -46,8 +46,9 @@ X_min = 0
 X_max = 1
 
 # Velocity Clamping
-V_max = (rd.uniform(0, 1)) * (X_max - X_min)
+V_max = round((rd.uniform(0, 1)) * (X_max - X_min), 6)
 V_min = -V_max
+print(V_max, V_min)
 
 # Generate new dataframe
 Xj = pd.DataFrame(columns=particle_list)  # Storage of position data in each iteration
@@ -74,3 +75,6 @@ Result = [Xj, Vj, Route_j, Cost_j, Fitness_j, Pbest_j, Gbest_i, Inertia_df]
 Result = PSO_exe(
     Result, Master_df, n, N, d, particle_list, c1, c2, X_min, X_max, V_min, V_max
 )
+
+for df in Result:
+    print_df(df)

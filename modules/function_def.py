@@ -236,6 +236,8 @@ def update_velocity(
     c1: float,
     c2: float,
     iteration: int,
+    Vmin: float,
+    Vmax: float,
 ):
     # Call Inertia Weight Now-Iteration
     inert_w = IW_df["Inertia Weight"][iteration]
@@ -271,11 +273,60 @@ def update_velocity(
         )
         V_now = np.round(V_now, 6)
 
+        # check velocity clamping
+        for idx in range(0, len(V_now)):
+            if V_now[idx] < Vmin:
+                V_now[idx] = Vmin
+            elif V_now[idx] > Vmax:
+                V_now[idx] = Vmax
+
+        # # Convert to a list datatype
+        # V_now = V_now.to_list()
+
         velo[particle] = [V_now]
 
     V_df = pd.concat([V_df, velo], ignore_index=True)
 
     return V_df
+
+
+def update_position(
+    X_df: pd.DataFrame,
+    V_df: pd.DataFrame,
+    particle_names: list,
+    iteration: int,
+    Xmin: float,
+    Xmax: float,
+):
+    pos = pd.DataFrame()  # A Temporary Storage
+    for particle in particle_names:
+        # Get the particle's position at the iteration-1
+        X_bfr = np.array(X_df[particle][iteration - 1])
+
+        # Get the particle's velocity at the now-iteration
+        V_now = np.array(V_df[particle][iteration])
+
+        # Calculate New Position
+        X_now = X_bfr + V_now
+
+        # Checking Position Clamping
+        for idx in range(0, len(X_now)):
+            if X_now[idx] < Xmin:
+                X_now[idx] = Xmin
+            elif X_now[idx] > Xmax:
+                X_now[idx] = Xmax
+
+        # Round to 6 number digits after the comma
+        X_now = np.round(X_now, 6)
+
+        # Convert to a list datatype
+        X_now = X_now.tolist()
+
+        pos[particle] = [X_now]
+
+    X_df = pd.concat([X_df, pos], ignore_index=True)
+
+    return X_df
 
 
 def PSO_exe(
@@ -303,8 +354,7 @@ def PSO_exe(
     G_df = Storage[6]  # Storage of The Gbest
     IW_df = Storage[7]  # Storage of The Inertia Weight
 
-    for i in range(0, 2):  # Start Iteration
-        print("iteration-" + str(i))
+    for i in range(0, max_iter):  # Start Iteration
         if i == 0:
             # Generate Initial Position
             X_df = initial_swarm_position(X_df, dimension, particle_names, Xmin, Xmax)
@@ -317,23 +367,26 @@ def PSO_exe(
 
             # Updating Velocity
             V_df = update_velocity(
-                V_df, X_df, IW_df, P_df, G_df, particle_names, c1, c2, i
+                V_df, X_df, IW_df, P_df, G_df, particle_names, c1, c2, i, Vmin, Vmax
             )
 
+            # Updating Position
+            X_df = update_position(X_df, V_df, particle_names, i, Xmin, Xmax)
+
         # Constructing The Route
-        R_df = evaluate_route(R_df, X_df, particle_names, 0)
+        R_df = evaluate_route(R_df, X_df, particle_names, i)
 
         # Calculating The Cost of The Route
-        C_df = evaluate_cost(C_df, R_df, CDS_df, particle_names, 0)
+        C_df = evaluate_cost(C_df, R_df, CDS_df, particle_names, i)
 
         # Evaluate The Fitness Value of The Route
-        F_df = evaluate_fitness(F_df, C_df, particle_names, 0)
+        F_df = evaluate_fitness(F_df, C_df, particle_names, i)
 
         # Evaluate P_best
-        P_df = evaluate_pbest(P_df, F_df, X_df, R_df, CDS_df, particle_names, 0)
+        P_df = evaluate_pbest(P_df, F_df, X_df, R_df, CDS_df, particle_names, i)
 
         # Evaluate G_best
-        G_df = evaluate_gbest(G_df, P_df, CDS_df, particle_names, 0)
+        G_df = evaluate_gbest(G_df, P_df, CDS_df, particle_names, i)
 
     # Change all the columns name of each df like the df name
     Result = [X_df, V_df, R_df, C_df, F_df, P_df, G_df, IW_df]
