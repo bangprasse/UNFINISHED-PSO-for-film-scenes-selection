@@ -9,14 +9,17 @@ import os
 
 # USER DEFINE FUNCTION
 # -----------------------------------
-def print_df(dataframe):
+def print_df(df_name: str, df: pd.DataFrame):
     """
     Prettier Tabular Output.
 
     Args:
-        dataframe (pandas.core.frame.DataFrame): The Dataframe that will be print out.
+        df_name: str                    = Name of The Dataframe
+        df: pandas.core.frame.DataFrame = The Dataframe that will be print out.
     """
-    print(tb(dataframe, headers="keys", tablefmt="psql"))
+    print(">> " + df_name)
+    print(tb(df, headers="keys", tablefmt="psql"))
+    print("")
 
 
 def clearscreen():
@@ -28,6 +31,15 @@ def clearscreen():
     - 'clear' for Unix/Linux/Mac
     """
     os.system("cls" if os.name == "nt" else "clear")
+
+
+def clearing_df(df: pd.DataFrame):
+    df = df.copy()
+
+    # Replace all "None", blank, "NaN" value
+    df = df.fillna("-")
+
+    return df
 
 
 def initial_swarm_position(
@@ -116,7 +128,8 @@ def evaluate_fitness(
     Fitness = pd.DataFrame()  # Temporary Storage
     for particle in particle_names:
         cost = C_df[particle][iteration]
-        fit_val = round(1 / cost, 6)
+        # fit_val = round(1 / cost, 6)
+        fit_val = cost
         Fitness[particle] = [fit_val]
 
     F_df = pd.concat([F_df, Fitness], ignore_index=True)
@@ -134,7 +147,8 @@ def calc_fit_pos(pos: list, CDS_df: pd.DataFrame):
         vertex1 = route[r]
         vertex2 = route[r + 1]
         cost = cost + (CDS_df[vertex2][vertex1])
-    fitval = round(1 / cost, 6)
+    # fitval = round(1 / cost, 6)
+    fitval = cost
 
     return fitval
 

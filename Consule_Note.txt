@@ -1,0 +1,2 @@
+1. Cara pembayaran talent ini
+2. Jika menggunakan Fitness = 1/F(X) terkadang itu menghasilkan angka koma 0,000000000x
