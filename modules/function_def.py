@@ -128,8 +128,7 @@ def evaluate_fitness(
     Fitness = pd.DataFrame()  # Temporary Storage
     for particle in particle_names:
         cost = C_df[particle][iteration]
-        # fit_val = round(1 / cost, 6)
-        fit_val = cost
+        fit_val = round(1 / cost, 6)
         Fitness[particle] = [fit_val]
 
     F_df = pd.concat([F_df, Fitness], ignore_index=True)
@@ -147,8 +146,7 @@ def calc_fit_pos(pos: list, CDS_df: pd.DataFrame):
         vertex1 = route[r]
         vertex2 = route[r + 1]
         cost = cost + (CDS_df[vertex2][vertex1])
-    # fitval = round(1 / cost, 6)
-    fitval = cost
+    fitval = round(1 / cost, 6)
 
     return fitval
 
