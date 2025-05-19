@@ -65,8 +65,8 @@ print("############################################")
 print("")
 
 # Base Parameter
-n = 1500  # Max Iteration
-N = 75  # Swarm Size
+n = 200  # Max Iteration
+N = 200  # Swarm Size
 particle_list = ["Prt" + str(i + 1) for i in range(0, N)]  # List of Particle Names
 
 c1 = 2  # Learning Rates
@@ -77,12 +77,13 @@ c2 = 2  # Learning Rates
 # so, i generate it by a function in modules/function_def.py
 
 # Position Clamping
-X_min = 0
-X_max = 1
+X_min = -10
+X_max = 10
 
 # Velocity Clamping
-V_max = round((rd.uniform(0, 1)) * (X_max - X_min), 7)
+# V_max = round((rd.uniform(0, 1)) * (X_max - X_min), 7)
 # V_max = round(0.5 * (X_max - X_min), 7)
+V_max = round((rd.uniform(0, 1) * ((X_max - X_min) / 2)), 7)
 V_min = -V_max
 
 # Generate new dataframe

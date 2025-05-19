@@ -49,7 +49,7 @@ def initial_swarm_position(
     # Securing Source Dataframe
     X_df = X_df.copy()
 
-    pos = pd.DataFrame()  # Temporary storage
+    pos = {}  # Temporary storage
     for particle in particle_names:  # Generate Initial Positions
         position = [round((rd.uniform(Xmin, Xmax)), 7) for j in range(0, dimension)]
 
@@ -57,6 +57,7 @@ def initial_swarm_position(
         # position[0] = 0
         pos[particle] = [position]
 
+    pos = pd.DataFrame.from_dict(pos).copy()
     X_df = pd.concat([X_df, pos], ignore_index=True)
 
     return X_df
@@ -70,17 +71,18 @@ def initial_swarm_velocity(
     V_df = V_df.copy()
 
     # adding r1, r2 to initial velocity
-    velo = pd.DataFrame()  # Temporary storage
-    velo["r1"] = [0]
-    velo["r2"] = [0]
+    velo_dict = {}  # Temporary storage
+    velo_dict["r1"] = [0]
+    velo_dict["r2"] = [0]
 
     for particle in particle_names:  # Generate Initial Velocities
         velocity = [round((rd.uniform(Vmin, Vmax)), 7) for j in range(0, dimension)]
         # In this case make sure scene index 0 is starter place
         # velocity[0] = 0
-        velo[particle] = [velocity]
+        velo_dict[particle] = [velocity]
 
-    V_df = pd.concat([V_df, velo], ignore_index=True)
+    velo = pd.DataFrame.from_dict(velo_dict).copy()
+    V_df = pd.concat([V_df, velo], ignore_index=True).copy()
 
     return V_df
 
@@ -98,7 +100,7 @@ def evaluate_route(
     R_df = R_df.copy()
     X_df = X_df.copy()
 
-    Routes = pd.DataFrame()  # Temporary Storage
+    Routes = {}  # Temporary Storage
     for particle in particle_names:  # Sorting Routes for Each Particle
         position = X_df[particle][iteration]
 
@@ -111,6 +113,7 @@ def evaluate_route(
 
         Routes[particle] = [sort_route]
 
+    Routes = pd.DataFrame.from_dict(Routes).copy()
     R_df = pd.concat([R_df, Routes], ignore_index=True)
 
     return R_df
@@ -124,7 +127,7 @@ def evaluate_cost(
     iteration=int,
 ):
     """"""
-    Costs = pd.DataFrame()  # Temporary Storage
+    Costs = {}  # Temporary Storage
     for particle in particle_names:
         cost = 0
         route = R_df[particle][iteration]
@@ -134,6 +137,7 @@ def evaluate_cost(
             cost = cost + (CDS_df[vertex2][vertex1])
         Costs[particle] = [cost]
 
+    Costs = pd.DataFrame.from_dict(Costs).copy()
     C_df = pd.concat([C_df, Costs], ignore_index=True)
 
     return C_df
@@ -142,12 +146,13 @@ def evaluate_cost(
 def evaluate_fitness(
     F_df: pd.DataFrame, C_df: pd.DataFrame, particle_names: list, iteration=int
 ):
-    Fitness = pd.DataFrame()  # Temporary Storage
+    Fitness = {}  # Temporary Storage
     for particle in particle_names:
         cost = C_df[particle][iteration]
         fit_val = round(1 / cost, 7)
         Fitness[particle] = [fit_val]
 
+    Fitness = pd.DataFrame.from_dict(Fitness).copy()
     F_df = pd.concat([F_df, Fitness], ignore_index=True)
 
     return F_df
@@ -186,7 +191,7 @@ def evaluate_pbest(
     # Get Fitness Value in Now Iteration
     fit_val_now = F_df.iloc[iteration]
 
-    Pc_df = pd.DataFrame()  # Temporary Storage
+    Pc_df = {}  # Temporary Storage
     for particle in particle_names:
         if iteration == 0:
             # Save Now Position as Pbest
@@ -202,6 +207,7 @@ def evaluate_pbest(
             else:
                 Pc_df[particle] = [Pb_part_bfr]
 
+    Pc_df = pd.DataFrame.from_dict(Pc_df).copy()
     P_df = pd.concat([P_df, Pc_df], ignore_index=True)
 
     return P_df
@@ -230,7 +236,7 @@ def evaluate_gbest(
             Gpos_candidat = Pb_particle
             Gval_candidat = Pb_val
 
-    Gc_df = pd.DataFrame()  # Temporary Storage
+    Gc_df = {}  # Temporary Storage
     if iteration == 0:
         Gc_df["Gbest"] = [Gpos_candidat]
         Gc_df["Fitness Value"] = [Gval_candidat]
@@ -245,6 +251,7 @@ def evaluate_gbest(
             Gc_df["Gbest"] = [G_df["Gbest"][iteration - 1]]
             Gc_df["Fitness Value"] = [G_bfr_val]
 
+    Gc_df = pd.DataFrame.from_dict(Gc_df).copy()
     G_df = pd.concat([G_df, Gc_df], ignore_index=True)
 
     return G_df
@@ -252,11 +259,11 @@ def evaluate_gbest(
 
 def generate_inertia_weight(IW_df: pd.DataFrame, iteration: int, max_iter: int):
     # Generate now-iteration's inertia weight
-    # inert_w = 0.5 + (round(rd.uniform(0, 1) / 2, 7))
+    inert_w = 0.5 + (round(rd.uniform(0, 1) / 2, 7))
 
-    w_max = 0.9
-    w_min = 0.1
-    inert_w = round(w_max - (iteration * ((w_max-w_min)/max_iter)), 7)
+    # w_max = 0.9
+    # w_min = 0.1
+    # inert_w = round(w_max - (iteration * ((w_max - w_min) / max_iter)), 7)
 
     # Saving to temporary storage
     IWc_df = pd.DataFrame({"Inertia Weight": [inert_w]})
@@ -291,7 +298,7 @@ def update_velocity(
     r2 = round(rd.uniform(0, 1), 7)
 
     # adding r1, r2 to initial velocity
-    velo = pd.DataFrame()  # Temporary storage
+    velo = {}  # Temporary storage
     velo["r1"] = [r1]
     velo["r2"] = [r2]
 
@@ -315,18 +322,19 @@ def update_velocity(
         V_now = np.round(V_now, 7)
 
         # check velocity clamping
-        # for idx in range(0, len(V_now)):
-        #     if V_now[idx] < Vmin:
-        #         V_now[idx] = Vmin
-        #     elif V_now[idx] > Vmax:
-        #         V_now[idx] = Vmax
+        for idx in range(0, len(V_now)):
+            if V_now[idx] < Vmin:
+                V_now[idx] = Vmin
+            elif V_now[idx] > Vmax:
+                V_now[idx] = Vmax
 
         # # Convert to a list datatype
         # V_now = V_now.to_list()
 
         velo[particle] = [V_now]
 
-    V_df = pd.concat([V_df, velo], ignore_index=True)
+    velo = pd.DataFrame.from_dict(velo).copy()
+    V_df = pd.concat([V_df, velo], ignore_index=True).copy()
 
     return V_df
 
@@ -339,7 +347,7 @@ def update_position(
     Xmin: float,
     Xmax: float,
 ):
-    pos = pd.DataFrame()  # A Temporary Storage
+    pos = {}  # A Temporary Storage
     for particle in particle_names:
         # Get the particle's position at the iteration-1
         X_bfr = np.array(X_df[particle][iteration - 1])
@@ -351,11 +359,11 @@ def update_position(
         X_now = X_bfr + V_now
 
         # Checking Position Clamping
-        # for idx in range(0, len(X_now)):
-        #     if X_now[idx] < Xmin:
-        #         X_now[idx] = Xmin
-        #     elif X_now[idx] > Xmax:
-        #         X_now[idx] = Xmax
+        for idx in range(0, len(X_now)):
+            if X_now[idx] < Xmin:
+                X_now[idx] = Xmin
+            elif X_now[idx] > Xmax:
+                X_now[idx] = Xmax
 
         # Round to 6 number digits after the comma
         X_now = np.round(X_now, 7)
@@ -365,6 +373,7 @@ def update_position(
 
         pos[particle] = [X_now]
 
+    pos = pd.DataFrame.from_dict(pos).copy()
     X_df = pd.concat([X_df, pos], ignore_index=True)
 
     return X_df
