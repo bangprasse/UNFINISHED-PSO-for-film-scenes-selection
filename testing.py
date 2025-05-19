@@ -33,3 +33,16 @@ N = 100
 # clearing_df(Scene_df)
 print("==================== PSO Result Summary ====================")
 print(">> Swarm Size (N)    : ", N)
+
+cost = 0
+for r in range(0, len(Starting_Route)):
+    if r == len(Starting_Route) - 1:
+        vertex1 = Starting_Route[r]
+        vertex2 = Starting_Route[0]
+    else:
+        vertex1 = Starting_Route[r]
+        vertex2 = Starting_Route[r + 1]
+    print(vertex1, " -> ", vertex2)
+    cost = cost + Cost_df[vertex2][vertex1]
+    print(cost)
+print(cost)

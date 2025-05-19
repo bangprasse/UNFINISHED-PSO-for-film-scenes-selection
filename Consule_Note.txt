@@ -1,2 +1,11 @@
-1. Cara pembayaran talent ini
-2. Jika menggunakan Fitness = 1/F(X) terkadang itu menghasilkan angka koma 0,000000000x
+1.  Karena ini TSP dengan titik awal yaitu scene 4, 
+    jadi saat proses perhitungan PSO, hanya titik selain scene 4 yang di hitung,
+    dan scene 4 akan ditambahkan setelah evaluasi rute
+
+2.  Karena ini TSP, maka saat evaluasi rute yang telah diurutkan,
+    ditambahkan tempat pertama sebagai tempat akhir dalam rute saat menghitung biaya
+
+3.  Pada Tabel Data Scene, scene 4 ditaruh di paling awal,
+    karena akan menjadi titik awal. Apa perlu dijelaskan?
+    
+4.  

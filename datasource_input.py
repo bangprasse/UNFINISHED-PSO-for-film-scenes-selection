@@ -106,11 +106,12 @@ for scene_start in scene_name:
         Tot_cost = round((Fuel_Cost + Tal_Cost), 6)
         Cost_temp_df[scene_dest] = [Tot_cost]
     Cost_df = pd.concat([Cost_df, Cost_temp_df], ignore_index=True)
+Cost_df.index = scene_name
 
 # Normalization Total Cost value between all scenes
 max_val = Cost_df.values.max()
 min_val = Cost_df.values.min()
-Cost_df = (Cost_df-min_val) / (max_val - min_val)
+norm_Cost_df = (Cost_df - min_val) / (max_val - min_val)
 
 # Set index to be starting scene name
-Cost_df.index = scene_name
+norm_Cost_df.index = scene_name
