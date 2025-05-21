@@ -115,3 +115,15 @@ norm_Cost_df = (Cost_df - min_val) / (max_val - min_val)
 
 # Set index to be starting scene name
 norm_Cost_df.index = scene_name
+
+# All Resources
+Resources = [
+    Scn_df,
+    Loc_df,
+    Tal_df,
+    Tal_Cos_df,
+    Scn_Dis_df,
+    Fuel_Cost_df,
+    Cost_df,
+    norm_Cost_df
+]

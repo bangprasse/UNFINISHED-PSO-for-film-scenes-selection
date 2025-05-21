@@ -8,4 +8,15 @@
 3.  Pada Tabel Data Scene, scene 4 ditaruh di paling awal,
     karena akan menjadi titik awal. Apa perlu dijelaskan?
     
-4.  
+4.  Skala Tuning Parameter
+    - N = 50 ~ 500
+        -> done : 50(1)
+    - n = 100 ~ 500
+        -> done :
+    - \varepsilon = 0.1, 0.2, 0.3
+        -> done :
+
+5. Parameter awal
+    - N = 50
+    - n = 100
+    - \varepsilon = 0.2

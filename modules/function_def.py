@@ -5,6 +5,8 @@ import pandas as pd
 import random as rd
 from tabulate import tabulate as tb
 import os
+from openpyxl import load_workbook
+from openpyxl.styles import Border, Side
 
 
 # USER DEFINE FUNCTION
@@ -42,21 +44,91 @@ def clearing_df(df: pd.DataFrame):
     return df
 
 
+def folder_maker(folder_name: str):
+    base_direct = os.path.dirname(os.path.dirname(__file__))
+    folder_path = os.path.join(base_direct, "Output", folder_name)
+
+    os.makedirs(folder_path, exist_ok=True)
+    return folder_path
+
+
+def summary_n_resource_export(
+    resource: list,
+    folder_path: str,
+    file_name: str,
+):
+    # Ungroup Resource
+    summary = resource[0]
+    scenes = resource[1]
+    locations = resource[2]
+    talents = resource[3]
+    talent_cost = resource[4]
+    scenes_distance = resource[5]
+    fuel_cost = resource[6]
+    scenes_cost = resource[7]
+    norm_cost = resource[8]
+
+    # Define folder and file path
+    file_name = "01_Summary Result and Resource.xlsx"
+    folder_path = os.path.join(folder_path, file_name)
+
+    # Exporting Dataframe
+    with pd.ExcelWriter(folder_path, engine="openpyxl") as writer:
+        summary.to_excel(writer, sheet_name="Summary Result", index=True, header=False)
+        scenes.to_excel(writer, sheet_name="Scene Data", index=True)
+        locations.to_excel(writer, sheet_name="Location Data", index=True)
+        talents.to_excel(writer, sheet_name="Talent Data", index=True)
+        talent_cost.to_excel(writer, sheet_name="Talent Cost Data", index=True)
+        scenes_distance.to_excel(writer, sheet_name="Scene Distance Data", index=True)
+        fuel_cost.to_excel(writer, sheet_name="Fuel Cost Data", index=True)
+        scenes_cost.to_excel(writer, sheet_name="Scene Cost Data", index=True)
+        norm_cost.to_excel(writer, sheet_name="Normalized Scene Cost Data", index=True)
+
+
+def calculation_export(
+    result: pd.DataFrame,
+    folder_path: str,
+    file_name: str,
+    condition: str,
+    sheetname: str,
+    head: bool,
+    row: bool,
+):
+    # Define folder and file path
+    file_name = file_name + ".xlsx"
+    folder_path = os.path.join(folder_path, file_name)
+
+    if condition == "new":
+        result.to_excel(folder_path, sheet_name=sheetname, header=head, index=row)
+    else:
+        with pd.ExcelWriter(folder_path, mode="a", engine="openpyxl") as writer:
+            result.to_excel(writer, sheet_name=sheetname, header=head, index=row)
+
+
 def initial_swarm_position(
-    X_df: pd.DataFrame, dimension: int, particle_names: list, Xmin: float, Xmax: float
+    X_df: pd.DataFrame,
+    dimension: int,
+    particle_names: list,
+    Xmin: float,
+    Xmax: float,
+    new_scn_idx: list,
+    folder_path: str,
 ):
     """ """
     # Securing Source Dataframe
     X_df = X_df.copy()
+    Ex_pos = pd.DataFrame(columns=new_scn_idx)
 
     pos = {}  # Temporary storage
     for particle in particle_names:  # Generate Initial Positions
         position = [round((rd.uniform(Xmin, Xmax)), 7) for j in range(0, dimension)]
-
-        # In this case make sure scene index 0 is starter place
-        # position[0] = 0
         pos[particle] = [position]
+        idx = particle.replace("Prt", "X")
+        Ex_pos.loc[idx] = position
 
+    calculation_export(
+        Ex_pos, folder_path, "02_Position", "new", "Iteration 0", True, True
+    )
     pos = pd.DataFrame.from_dict(pos).copy()
     X_df = pd.concat([X_df, pos], ignore_index=True)
 
@@ -64,11 +136,19 @@ def initial_swarm_position(
 
 
 def initial_swarm_velocity(
-    V_df: pd.DataFrame, dimension: int, particle_names: list, Vmin: float, Vmax: float
+    V_df: pd.DataFrame,
+    dimension: int,
+    particle_names: list,
+    Vmin: float,
+    Vmax: float,
+    new_scn_idx: list,
+    folder_path: str,
 ):
     """"""
-    # Securing Source Dataframe
-    V_df = V_df.copy()
+    scena = ["r1", "r2"]
+    for scn in new_scn_idx:
+        scena.append(scn)
+    Ex_V = pd.DataFrame(columns=scena)
 
     # adding r1, r2 to initial velocity
     velo_dict = {}  # Temporary storage
@@ -77,10 +157,18 @@ def initial_swarm_velocity(
 
     for particle in particle_names:  # Generate Initial Velocities
         velocity = [round((rd.uniform(Vmin, Vmax)), 7) for j in range(0, dimension)]
-        # In this case make sure scene index 0 is starter place
-        # velocity[0] = 0
         velo_dict[particle] = [velocity]
 
+        v_velo = [0, 0]
+        for vel in velocity:
+            v_velo.append(vel)
+
+        v_idx = particle.replace("Prt", "V")
+        Ex_V.loc[v_idx] = v_velo
+
+    calculation_export(
+        Ex_V, folder_path, "04_Velocity", "new", "Iteration 0", True, True
+    )
     velo = pd.DataFrame.from_dict(velo_dict).copy()
     V_df = pd.concat([V_df, velo], ignore_index=True).copy()
 
@@ -103,14 +191,12 @@ def evaluate_route(
     Routes = {}  # Temporary Storage
     for particle in particle_names:  # Sorting Routes for Each Particle
         position = X_df[particle][iteration]
-
         route = dict(zip(scn_idx, position))
         sort_route = sorted(route, key=route.get)
 
         # Adding the starter scene as the start and ending point
         sort_route.insert(0, start_idx)
         sort_route.append(start_idx)
-
         Routes[particle] = [sort_route]
 
     Routes = pd.DataFrame.from_dict(Routes).copy()
@@ -124,9 +210,12 @@ def evaluate_cost(
     R_df: pd.DataFrame,
     CDS_df: pd.DataFrame,
     particle_names: list,
-    iteration=int,
+    iteration: int,
+    folder_path: str,
 ):
     """"""
+    Ex_RnC = pd.DataFrame(columns=["Route", "Cost"])
+
     Costs = {}  # Temporary Storage
     for particle in particle_names:
         cost = 0
@@ -137,6 +226,24 @@ def evaluate_cost(
             cost = cost + (CDS_df[vertex2][vertex1])
         Costs[particle] = [cost]
 
+        rnc_val = [route, cost]
+        rnc_idx = particle.replace("Prt", "X")
+        Ex_RnC.loc[rnc_idx] = rnc_val
+
+    if iteration == 0:
+        calculation_export(
+            Ex_RnC, folder_path, "05_Route and Cost", "new", "Iteration 0", True, True
+        )
+    else:
+        calculation_export(
+            Ex_RnC,
+            folder_path,
+            "05_Route and Cost",
+            "Add",
+            "Iteration " + str(iteration),
+            True,
+            True,
+        )
     Costs = pd.DataFrame.from_dict(Costs).copy()
     C_df = pd.concat([C_df, Costs], ignore_index=True)
 
@@ -144,16 +251,32 @@ def evaluate_cost(
 
 
 def evaluate_fitness(
-    F_df: pd.DataFrame, C_df: pd.DataFrame, particle_names: list, iteration=int
+    F_df: pd.DataFrame,
+    C_df: pd.DataFrame,
+    particle_names: list,
+    iteration: int,
+    max_iter: int,
+    folder_path: str,
 ):
     Fitness = {}  # Temporary Storage
+    f_idx = []
     for particle in particle_names:
         cost = C_df[particle][iteration]
         fit_val = round(1 / cost, 7)
         Fitness[particle] = [fit_val]
-
+        f_idx.append(particle.replace("Prt", "X"))
     Fitness = pd.DataFrame.from_dict(Fitness).copy()
     F_df = pd.concat([F_df, Fitness], ignore_index=True)
+
+    if iteration == max_iter:
+        Ex_F = F_df.copy()
+        Ex_F.columns = f_idx
+        f_i = [i for i in range(0, max_iter + 1)]
+        Ex_F["Iteration"] = f_i
+        Ex_F = Ex_F.set_index("Iteration")
+        calculation_export(
+            Ex_F, folder_path, "06_Fitness Value", "new", "Fitness Value", True, True
+        )
 
     return F_df
 
@@ -187,15 +310,25 @@ def evaluate_pbest(
     iteration: int,
     start_idx: int,
     scn_idx: list,
+    max_iter: int,
+    folder_path: str,
 ):
     # Get Fitness Value in Now Iteration
     fit_val_now = F_df.iloc[iteration]
+    Ex_col = ["Fitness Value"]
+    for scn in scn_idx:
+        Ex_col.append(scn)
+    Ex_P = pd.DataFrame(columns=Ex_col)
 
     Pc_df = {}  # Temporary Storage
     for particle in particle_names:
         if iteration == 0:
             # Save Now Position as Pbest
             Pc_df[particle] = [X_df[particle][0]]
+
+            p_list = [F_df[particle][0]]
+            for pos_val in X_df[particle][0]:
+                p_list.append(pos_val)
         else:
             # Call The Pbest and its fitness value in iteration-1 of the particle
             Pb_part_bfr = P_df[particle][iteration - 1]
@@ -204,8 +337,34 @@ def evaluate_pbest(
             # Save the position with biggest Fitness Value as Pbest
             if fit_val_now[particle] >= Pb_fit_val:
                 Pc_df[particle] = [X_df[particle][iteration]]
+
+                p_list = [fit_val_now[particle]]
+                for pos_val in X_df[particle][iteration]:
+                    p_list.append(pos_val)
             else:
                 Pc_df[particle] = [Pb_part_bfr]
+
+                p_list = [Pb_fit_val]
+                for pos_val in Pb_part_bfr:
+                    p_list.append(pos_val)
+
+        p_part = particle.replace("Prt", "Pbest")
+        Ex_P.loc[p_part] = p_list
+
+    if iteration == 0:
+        calculation_export(
+            Ex_P, folder_path, "07_Pbest", "new", "Iteration 0", True, True
+        )
+    else:
+        calculation_export(
+            Ex_P,
+            folder_path,
+            "07_Pbest",
+            "add",
+            "Iteration " + str(iteration),
+            True,
+            True,
+        )
 
     Pc_df = pd.DataFrame.from_dict(Pc_df).copy()
     P_df = pd.concat([P_df, Pc_df], ignore_index=True)
@@ -221,6 +380,8 @@ def evaluate_gbest(
     iteration: int,
     start_idx: int,
     scn_idx: list,
+    folder_path: str,
+    max_iter: int,
 ):
     # Call All of Now-Iteration Pbest
     P_best = P_df.iloc[iteration]
@@ -253,11 +414,21 @@ def evaluate_gbest(
 
     Gc_df = pd.DataFrame.from_dict(Gc_df).copy()
     G_df = pd.concat([G_df, Gc_df], ignore_index=True)
+    if iteration == max_iter:
+        Ex_G = pd.DataFrame()
+        Ex_idx = [i for i in range(0, max_iter + 1)]
+        Ex_G["Iteration"] = Ex_idx
+        Ex_G["Fitness Value"] = G_df["Fitness Value"]
+        Ex_G["Gbest"] = G_df["Gbest"]
+        Ex_G = Ex_G.set_index("Iteration")
+        calculation_export(Ex_G, folder_path, "08_Gbest", "new", "Gbest", True, True)
 
     return G_df
 
 
-def generate_inertia_weight(IW_df: pd.DataFrame, iteration: int, max_iter: int):
+def generate_inertia_weight(
+    IW_df: pd.DataFrame, iteration: int, max_iter: int, folder_path: str
+):
     # Generate now-iteration's inertia weight
     inert_w = 0.5 + (round(rd.uniform(0, 1) / 2, 7))
 
@@ -270,6 +441,18 @@ def generate_inertia_weight(IW_df: pd.DataFrame, iteration: int, max_iter: int):
 
     # Add to the Inertia Weight Dataframe as a new row
     IW_df = pd.concat([IW_df, IWc_df], ignore_index=True)
+
+    if iteration == max_iter:
+        iw = IW_df.copy()
+        calculation_export(
+            iw,
+            folder_path,
+            "03_Inertia Weight",
+            "new",
+            "Inertia Weight Value",
+            True,
+            True,
+        )
 
     return IW_df
 
@@ -286,7 +469,14 @@ def update_velocity(
     iteration: int,
     Vmin: float,
     Vmax: float,
+    new_scn_idx: list,
+    folder_path: str,
 ):
+    scena = ["r1", "r2"]
+    for scn in new_scn_idx:
+        scena.append(scn)
+    Ex_V = pd.DataFrame(columns=scena)
+
     # Call Inertia Weight Now-Iteration
     inert_w = IW_df["Inertia Weight"][iteration]
 
@@ -327,12 +517,23 @@ def update_velocity(
                 V_now[idx] = Vmin
             elif V_now[idx] > Vmax:
                 V_now[idx] = Vmax
-
-        # # Convert to a list datatype
-        # V_now = V_now.to_list()
-
         velo[particle] = [V_now]
 
+        v_velo = [r1, r2]
+        for v_vel in V_now:
+            v_velo.append(v_vel)
+        v_idx = particle.replace("Prt", "V")
+        Ex_V.loc[v_idx] = v_velo
+
+    calculation_export(
+        Ex_V,
+        folder_path,
+        "04_Velocity",
+        "Add",
+        "Iteration " + str(iteration),
+        True,
+        True,
+    )
     velo = pd.DataFrame.from_dict(velo).copy()
     V_df = pd.concat([V_df, velo], ignore_index=True).copy()
 
@@ -346,7 +547,11 @@ def update_position(
     iteration: int,
     Xmin: float,
     Xmax: float,
+    new_scn_idx: list,
+    folder_path: str,
 ):
+    Ex_pos = pd.DataFrame(columns=new_scn_idx)
+
     pos = {}  # A Temporary Storage
     for particle in particle_names:
         # Get the particle's position at the iteration-1
@@ -370,9 +575,20 @@ def update_position(
 
         # Convert to a list datatype
         X_now = X_now.tolist()
-
         pos[particle] = [X_now]
 
+        idx = particle.replace("Prt", "X")
+        Ex_pos.loc[idx] = X_now
+
+    calculation_export(
+        Ex_pos,
+        folder_path,
+        "02_Position",
+        "Add",
+        "Iteration " + str(iteration),
+        True,
+        True,
+    )
     pos = pd.DataFrame.from_dict(pos).copy()
     X_df = pd.concat([X_df, pos], ignore_index=True)
 
@@ -394,6 +610,7 @@ def PSO_exe(
     Vmax: float,
     starting_scene: int | str,
     scene_list: list,
+    folder_path: str,
 ):
     """"""
     # Ungroup Dataframe
@@ -417,45 +634,67 @@ def PSO_exe(
         # Start Iteration, adding +1 because 0 was pso init
         if i == 0:
             # Generate Initial Position
-            X_df = initial_swarm_position(X_df, dimension, particle_names, Xmin, Xmax)
+            X_df = initial_swarm_position(
+                X_df, dimension, particle_names, Xmin, Xmax, new_scn_idx, folder_path
+            )
 
             # Generate Initial Velocity
-            V_df = initial_swarm_velocity(V_df, dimension, particle_names, Vmin, Vmax)
+            V_df = initial_swarm_velocity(
+                V_df, dimension, particle_names, Vmin, Vmax, new_scn_idx, folder_path
+            )
         else:
             # Generate Inertia Weight
-            IW_df = generate_inertia_weight(IW_df, i, max_iter)
+            IW_df = generate_inertia_weight(IW_df, i, max_iter, folder_path)
 
             # Updating Velocity
             V_df = update_velocity(
-                V_df, X_df, IW_df, P_df, G_df, particle_names, c1, c2, i, Vmin, Vmax
+                V_df,
+                X_df,
+                IW_df,
+                P_df,
+                G_df,
+                particle_names,
+                c1,
+                c2,
+                i,
+                Vmin,
+                Vmax,
+                new_scn_idx,
+                folder_path,
             )
 
             # Updating Position
-            X_df = update_position(X_df, V_df, particle_names, i, Xmin, Xmax)
+            X_df = update_position(
+                X_df, V_df, particle_names, i, Xmin, Xmax, new_scn_idx, folder_path
+            )
 
         # Constructing The Route
         R_df = evaluate_route(R_df, X_df, particle_names, i, starting_idx, new_scn_idx)
 
         # Calculating The Cost of The Route
-        C_df = evaluate_cost(
-            C_df,
+        C_df = evaluate_cost(C_df, R_df, CDS_df, particle_names, i, folder_path)
+
+        # Evaluate The Fitness Value of The Route
+        F_df = evaluate_fitness(F_df, C_df, particle_names, i, max_iter, folder_path)
+
+        # Evaluate P_best
+        P_df = evaluate_pbest(
+            P_df,
+            F_df,
+            X_df,
             R_df,
             CDS_df,
             particle_names,
             i,
-        )
-
-        # Evaluate The Fitness Value of The Route
-        F_df = evaluate_fitness(F_df, C_df, particle_names, i)
-
-        # Evaluate P_best
-        P_df = evaluate_pbest(
-            P_df, F_df, X_df, R_df, CDS_df, particle_names, i, starting_idx, new_scn_idx
+            starting_idx,
+            new_scn_idx,
+            max_iter,
+            folder_path,
         )
 
         # Evaluate G_best
         G_df = evaluate_gbest(
-            G_df, P_df, CDS_df, particle_names, i, starting_idx, new_scn_idx
+            G_df, P_df, CDS_df, particle_names, i, starting_idx, new_scn_idx, folder_path, max_iter
         )
 
     # Change all the columns name of each df like the df name
@@ -496,6 +735,7 @@ def optim_cost(
 
 
 def print_output(
+    session_name: str,
     Storage: list,
     CDS_df: pd.DataFrame,
     Cost_df: pd.DataFrame,
@@ -521,13 +761,13 @@ def print_output(
     IW_df = Storage[7]  # Storage of The Inertia Weight
 
     # Printing All Dataframe Output
-    # print_df("Output: Dataframe for Position", X_df)
-    # print_df("Output: Dataframe for Inertia Weight", IW_df)
-    # print_df("Output: Dataframe for Velocity", V_df)
-    # print_df("Output: Dataframe for Route", R_df)
-    # print_df("Output: Dataframe for Cost", C_df)
-    # print_df("Output: Dataframe for Fitness Value", F_df)
-    # print_df("Output: Dataframe for Pbest", P_df)
+    print_df("Output: Dataframe for Position", X_df)
+    print_df("Output: Dataframe for Inertia Weight", IW_df)
+    print_df("Output: Dataframe for Velocity", V_df)
+    print_df("Output: Dataframe for Route", R_df)
+    print_df("Output: Dataframe for Cost", C_df)
+    print_df("Output: Dataframe for Fitness Value", F_df)
+    print_df("Output: Dataframe for Pbest", P_df)
     print_df("Output: Dataframe for Gbest", G_df)
 
     # Get the index of the starting scene from the scene name list
@@ -539,6 +779,7 @@ def print_output(
 
     Optimum_Route = optim_route(G_df["Gbest"][n], scene_list, starting_idx, new_scn_idx)
     Optimum_Cost = optim_cost(Optimum_Route, Cost_df, max_value, min_value)
+    Optimum_Fitness = round(G_df["Fitness Value"][n], 7)
 
     # Printing Summary Output
     print("")
@@ -554,8 +795,29 @@ def print_output(
     print(">> Best Route        : ", Optimum_Route)
     print(">> Cost              : Rp", Optimum_Cost)
 
+    # Make summary dataframe
+    summary = {}
+    summary["Calcuation Session"] = [session_name]
+    summary["Swarm Size (N)"] = [N]
+    summary["Max Iteration (n)"] = [n]
+    summary["Cognitive (c1)"] = [c1]
+    summary["Social (c2)"] = [c2]
+    summary["Velocity Maxmimum (Vmax)"] = [Vmax]
+    summary["Velocity Minimum (Vmin)"] = [Vmin]
+    summary["Inertia Weight Strategy"] = ["Random Inertia Weight Strategy"]
+    summary[" "] = [" "]
+    summary["Best Route"] = [Optimum_Route]
+    summary["Route Cost"] = ["Rp" + str(Optimum_Cost)]
+    summary["Route Fitness Value"] = [str(Optimum_Fitness)]
+    summary[" "] = [" "]
+
+    summary = pd.DataFrame.from_dict(summary, orient="index").copy()
+
+    return summary
+
 
 def Optimality_comparison(
+    summary: pd.DataFrame,
     start_route: list,
     Cost_df: pd.DataFrame,
     n: int,
@@ -575,3 +837,12 @@ def Optimality_comparison(
     print("--- Optimality Comparison ---")
     print(">> Original Route       : ", start_route)
     print(">> Original Cost        : Rp", cost)
+
+    add_summary = {}
+    add_summary["Original Route"] = [start_route]
+    add_summary["Original Cost"] = ["Rp" + str(cost)]
+    add_summary = pd.DataFrame.from_dict(add_summary, orient="index").copy()
+
+    summary = pd.concat([summary, add_summary], ignore_index=False)
+
+    return summary

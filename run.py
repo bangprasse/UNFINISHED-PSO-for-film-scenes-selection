@@ -8,7 +8,11 @@ from modules import *
 # Import all data sources from data_input.py
 from datasource_input import *
 
-# clearscreen()
+
+# Program Init
+session_name = input("What the name of this calculation session? ")
+folder_path = folder_maker(session_name)
+
 # DATA SOURCE INIT AND PREPROCCESING
 # -------------------------------------------
 # Data sources and cases parameter initialization
@@ -44,6 +48,7 @@ print_df("Data Source for Fuel Cost Between All Scenes", Fuel_Cost_df)
 
 # # 7. Data Source for Total Cost Between All Scenes
 print_df("Data Source for Total Cost Between All Scenes", norm_Cost_df)
+the_norm = norm_Cost_df.copy()
 
 # Get Max and Min Value of Cost_df before Normalization
 max_value = max_val
@@ -55,6 +60,9 @@ norm_Cost_df = norm_Cost_df.reset_index()
 norm_Cost_df.drop(["index"], inplace=True, axis=1)
 print_df("Converted Cost_df", norm_Cost_df)
 
+# Defining seed's number for random usage
+rd.seed(42)
+
 
 # PSO INITIALIZATION
 # -------------------------------------------
@@ -65,8 +73,8 @@ print("############################################")
 print("")
 
 # Base Parameter
-n = 200  # Max Iteration
-N = 200  # Swarm Size
+n = 100  # Max Iteration
+N = 30  # Swarm Size
 particle_list = ["Prt" + str(i + 1) for i in range(0, N)]  # List of Particle Names
 
 c1 = 2  # Learning Rates
@@ -81,9 +89,9 @@ X_min = -10
 X_max = 10
 
 # Velocity Clamping
-# V_max = round((rd.uniform(0, 1)) * (X_max - X_min), 7)
+V_max = round(0.2 * (X_max - X_min), 7)
 # V_max = round(0.5 * (X_max - X_min), 7)
-V_max = round((rd.uniform(0, 1) * ((X_max - X_min) / 2)), 7)
+# V_max = round((rd.uniform(0, 1) * ((X_max - X_min) / 2)), 7)
 V_min = -V_max
 
 # Generate new dataframe
@@ -129,10 +137,12 @@ Result = PSO_exe(
     V_max,
     starting_scene,
     scene_name,
+    folder_path,
 )
 
 # Printing Output
-print_output(
+summary = print_output(
+    session_name,
     Result,
     norm_Cost_df,
     Cost_df,
@@ -211,24 +221,9 @@ Starting_Route = [
     "1E",
     11,
 ]
-Optimality_comparison(Starting_Route, Cost_df, n)
+summary = Optimality_comparison(summary, Starting_Route, Cost_df, n)
 
+# Exporting Summary Result and Resource
+Resources.insert(0, summary)
 
-# G_df = Result[6]
-# last_route = G_df["Gbest"][n]
-# route = sorted(range(len(last_route)), key=lambda x: last_route[x])
-# The_route = [scene_name[rout] for rout in route]
-
-# cost_a = 0
-# cost_b = 0
-# for idx in range(0, len(The_route) - 1):
-
-#     va1 = The_route[idx]
-#     va2 = The_route[idx + 1]
-#     vb1 = Starting_Route[idx]
-#     vb2 = Starting_Route[idx + 1]
-
-#     cost_a = round(cost_a + Cost_df[va2][va1], 6)
-#     cost_b = round(cost_b + Cost_df[vb2][vb1], 6)
-
-#     print(str(va2) + " # " + str(vb2) + " === " + str(cost_a) + " # " + str(cost_b))
+summary_n_resource_export(Resources, folder_path, session_name)
